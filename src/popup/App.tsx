@@ -103,10 +103,10 @@ export default function App() {
       {/* Header */}
       <header className="flex items-center justify-between p-4 border-b border-dark-800 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-sky-600 flex items-center justify-center">
             <Video className="w-4 h-4 text-white" />
           </div>
-          <h1 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-indigo-400">
+          <h1 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-sky-400">
             Screen Scribe
           </h1>
         </div>
@@ -167,7 +167,7 @@ export default function App() {
                   onClick={() => setMode('edit')}
                   className={`flex flex-col p-4 rounded-xl border transition-all ${
                     mode === 'edit'
-                      ? 'border-primary-500 bg-primary-500/10 shadow-[0_0_15px_rgba(139,92,246,0.1)]'
+                      ? 'border-primary-500 bg-primary-500/10 shadow-[0_0_15px_rgba(59,130,246,0.1)]'
                       : 'border-dark-800 bg-dark-800/50 hover:bg-dark-800 hover:border-dark-600'
                   }`}
                 >
@@ -180,11 +180,11 @@ export default function App() {
                   onClick={() => setMode('inspire')}
                   className={`flex flex-col p-4 rounded-xl border transition-all ${
                     mode === 'inspire'
-                      ? 'border-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.1)]'
+                      ? 'border-sky-500 bg-sky-500/10 shadow-[0_0_15px_rgba(14,165,233,0.1)]'
                       : 'border-dark-800 bg-dark-800/50 hover:bg-dark-800 hover:border-dark-600'
                   }`}
                 >
-                  <ImageIcon className={`w-6 h-6 mb-2 ${mode === 'inspire' ? 'text-indigo-400' : 'text-slate-500'}`} />
+                  <ImageIcon className={`w-6 h-6 mb-2 ${mode === 'inspire' ? 'text-sky-400' : 'text-slate-500'}`} />
                   <span className="font-medium text-left">Inspire</span>
                   <span className="text-xs text-slate-500 text-left mt-1 line-clamp-2">Clone a website's vibe.</span>
                 </button>
@@ -226,7 +226,7 @@ export default function App() {
                            >
                               <div className="flex flex-col gap-1 overflow-hidden">
                                  <span className="text-xs font-medium text-slate-300 flex items-center gap-2">
-                                    {item.mode === 'edit' ? <Code2 className="w-3 h-3 text-primary-400" /> : <ImageIcon className="w-3 h-3 text-indigo-400" />}
+                                    {item.mode === 'edit' ? <Code2 className="w-3 h-3 text-primary-400" /> : <ImageIcon className="w-3 h-3 text-sky-400" />}
                                     {item.mode === 'edit' ? 'Edit & Fix' : 'Inspire'} 
                                     <span className="text-slate-500">• {date}</span>
                                  </span>
@@ -276,7 +276,7 @@ export default function App() {
                   ? 'bg-red-500 text-white animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.4)]'
                   : resultPrompt 
                       ? 'bg-dark-800 hover:bg-dark-700 text-slate-300' // Hidden essentially, replaced by 'Back' above, but keeping structure
-                      : 'bg-primary-600 hover:bg-primary-500 text-white shadow-[0_4px_14px_0_rgba(139,92,246,0.39)]'
+                      : 'bg-primary-600 hover:bg-primary-500 text-white shadow-[0_4px_14px_0_rgba(59,130,246,0.39)]'
           } ${resultPrompt ? 'hidden' : ''}`}
         >
           {isProcessing ? (
