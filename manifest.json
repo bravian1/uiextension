@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini Screen Scribe",
+  "version": "1.0.0",
+  "description": "Record your screen, voice, and annotations to generate AI coding prompts via Gemini.",
+  "action": {
+    "default_popup": "index.html"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.tsx"]
+    }
+  ],
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ]
+}
