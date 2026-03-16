@@ -63,6 +63,23 @@ export const shadowCss = `
     pointer-events: auto;
     font-family: system-ui, sans-serif;
   }
+
+  .scroll-disabled-toast {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #7C3AED;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+    pointer-events: none;
+    font-family: system-ui, sans-serif;
+    white-space: nowrap;
+  }
   
   .result-modal {
     position: absolute;
@@ -158,6 +175,21 @@ export default function Overlay() {
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
   }, []);
 
+  // Block scrolling while drawing mode is active
+  useEffect(() => {
+    if (!isDrawingMode) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+    };
+  }, [isDrawingMode]);
+
   const handleStopRecording = () => {
     if (isProcessing) return;
     setIsProcessing(true);
@@ -206,6 +238,13 @@ export default function Overlay() {
           />
         )}
       </svg>
+
+      {/* Scroll-disabled toast */}
+      {isDrawingMode && (
+        <div className="scroll-disabled-toast">
+          🔒 Scroll disabled while drawing — toggle Draw off to scroll
+        </div>
+      )}
 
       {/* Floating Toolbar inside the overlay */}
       {isRecording && !isProcessing && !resultPrompt && (
