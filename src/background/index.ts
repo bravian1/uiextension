@@ -1,6 +1,14 @@
-import { processVideoWithGemini } from '../lib/gemini';
+import { processVideoWithBackend } from '../lib/gemini';
 
-let creating: Promise<void> | null = null; // A global promise to avoid concurrency issues
+let creating: Promise<void> | null = null;
+
+async function getOrCreateSessionId(): Promise<string> {
+  const result = await chrome.storage.local.get(['sessionId']);
+  if (result.sessionId) return result.sessionId as string;
+  const sessionId = crypto.randomUUID();
+  await chrome.storage.local.set({ sessionId });
+  return sessionId;
+}
 
 async function setupOffscreenDocument(path: string) {
   const offscreenUrl = chrome.runtime.getURL(path);
@@ -32,18 +40,17 @@ async function closeOffscreenDocument() {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'start-recording') {
     handleStartRecording(sendResponse);
-    return true; // Keep channel open
+    return true;
   }
 
   if (message.type === 'stop-recording') {
     handleStopRecording(sendResponse);
-    return true; // Keep channel open
+    return true;
   }
 
   if (message.type === 'recording-timeout') {
-     console.warn('Recording reached maximum duration.');
-     // Optionally notify the content script to update UI
-     handleStopRecording(() => {}); 
+    console.warn('Recording reached maximum duration.');
+    handleStopRecording(() => {});
   }
 });
 
@@ -55,22 +62,18 @@ async function handleStartRecording(sendResponse: (x: any) => void) {
 
     await setupOffscreenDocument('src/offscreen/index.html');
 
-    // The offscreen document calls getDisplayMedia() directly — passing a desktopCapture
-    // stream ID cross-context to an offscreen doc is not supported by Chrome.
     const response = await chrome.runtime.sendMessage({
       type: 'start-recording',
       target: 'offscreen',
     });
 
     if (response?.success) {
-      // Only show the drawing and stop toolbar if the recording actually started
       chrome.tabs.sendMessage(tabs[0].id, { type: 'toggle-drawing-mode', active: true }).catch(() => {});
     } else {
       throw new Error(response?.error || 'Failed to start offscreen recorder');
     }
 
     sendResponse(response);
-
   } catch (error: any) {
     console.error('Failed to start recording:', error);
     await chrome.storage.session.remove(['recordingTabId']);
@@ -81,50 +84,32 @@ async function handleStartRecording(sendResponse: (x: any) => void) {
 
 async function handleStopRecording(sendResponse: (x: any) => void) {
   try {
-      const session = await chrome.storage.session.get(['recordingTabId', 'recordingMode']);
-      if (!session.recordingTabId) throw new Error("No active recording session.");
+    const session = await chrome.storage.session.get(['recordingTabId', 'recordingMode']);
+    if (!session.recordingTabId) throw new Error("No active recording session.");
 
-      // Clear immediately to prevent double-stop race conditions from React double clicks
-      await chrome.storage.session.remove(['recordingTabId', 'isRecording']);
+    await chrome.storage.session.remove(['recordingTabId', 'isRecording']);
 
-      const local = await chrome.storage.local.get(['geminiApiKey']);
-      const apiKey = local.geminiApiKey;
-      const mode = session.recordingMode || 'edit';
+    const mode = session.recordingMode || 'edit';
+    const sessionId = await getOrCreateSessionId();
 
-      // Tell content script to hide drawing tools
-      chrome.tabs.sendMessage(session.recordingTabId as number, { type: 'toggle-drawing-mode', active: false }).catch(() => {});
+    chrome.tabs.sendMessage(session.recordingTabId as number, { type: 'toggle-drawing-mode', active: false }).catch(() => {});
 
-      const response = await chrome.runtime.sendMessage({
-          type: 'stop-recording',
-          target: 'offscreen'
-      });
-      
-      await closeOffscreenDocument();
+    const response = await chrome.runtime.sendMessage({
+      type: 'stop-recording',
+      target: 'offscreen'
+    });
 
-      if (response && response.success && response.payload) {
-          console.log("Got video payload. Sending to Gemini...");
-          if (!apiKey) throw new Error("API Key is missing but recording finished.");
-          
-          const prompt = await processVideoWithGemini(apiKey as string, response.payload, mode as "edit" | "inspire");
-          
-          // Save to history
-          const storage = await chrome.storage.local.get(['promptHistory']);
-          const promptHistory: any[] = (storage.promptHistory as any[]) || [];
-          promptHistory.unshift({
-              id: Date.now().toString(),
-              prompt,
-              mode,
-              timestamp: Date.now()
-          });
-          await chrome.storage.local.set({ promptHistory: promptHistory.slice(0, 20) });
+    await closeOffscreenDocument();
 
-          sendResponse({ success: true, prompt });
-      } else {
-          sendResponse({ success: false, error: response?.error || 'Unknown error stopping' });
-      }
-
+    if (response?.success && response.payload) {
+      console.log("Got video payload. Sending to backend...");
+      const prompt = await processVideoWithBackend(response.payload, mode as "edit" | "inspire", sessionId);
+      sendResponse({ success: true, prompt });
+    } else {
+      sendResponse({ success: false, error: response?.error || 'Unknown error stopping' });
+    }
   } catch (error: any) {
-     console.error('Failed to stop recording & process:', error);
-     sendResponse({ success: false, error: error.message });
+    console.error('Failed to stop recording & process:', error);
+    sendResponse({ success: false, error: error.message });
   }
 }

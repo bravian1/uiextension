@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Image as ImageIcon, Code2, Video, Pencil, Clock, Copy, ChevronDown, ChevronRight } from 'lucide-react';
+import { fetchHistory } from '../lib/gemini';
 import '../styles/globals.css';
 
 type Mode = 'edit' | 'inspire';
@@ -15,36 +16,28 @@ export default function App() {
   const [mode, setMode] = useState<Mode>('edit');
   const [isRecording, setIsRecording] = useState(false);
 
-  const [apiKey, setApiKey] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [resultPrompt, setResultPrompt] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
-  // When popup opens, check if we are already recording and load API key
+  // When popup opens, check recording state and load history from backend
   React.useEffect(() => {
     chrome.storage.session.get(['isRecording', 'recordingMode'], (result) => {
-        setIsRecording(!!result.isRecording);
-        if (result.recordingMode) setMode(result.recordingMode as Mode);
+      setIsRecording(!!result.isRecording);
+      if (result.recordingMode) setMode(result.recordingMode as Mode);
     });
-    chrome.storage.local.get(['geminiApiKey', 'promptHistory'], (result) => {
-        if (result.geminiApiKey) setApiKey(result.geminiApiKey as string);
-        if (result.promptHistory) setHistory(result.promptHistory as HistoryItem[]);
+    chrome.storage.local.get(['sessionId'], async (result) => {
+      if (result.sessionId) {
+        const prompts = await fetchHistory(result.sessionId as string);
+        setHistory(prompts as HistoryItem[]);
+      }
     });
   }, []);
 
-  const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setApiKey(e.target.value);
-    chrome.storage.local.set({ geminiApiKey: e.target.value });
-  };
-
   const handleToggleRecording = async () => {
     setErrorMsg('');
-    if (!apiKey) {
-      setErrorMsg('Please enter your Gemini API key first.');
-      return;
-    }
 
     if (isRecording) {
       setIsRecording(false);
@@ -52,17 +45,19 @@ export default function App() {
       chrome.storage.session.set({ isRecording: false });
       
       try {
-          const response = await chrome.runtime.sendMessage({ 
-              type: 'stop-recording', 
-              mode: mode, 
-              apiKey: apiKey 
+          const response = await chrome.runtime.sendMessage({
+              type: 'stop-recording',
+              mode: mode,
           });
           
           if (response?.success && response.prompt) {
             setResultPrompt(response.prompt);
-            // Reload history to show the newest item
-            chrome.storage.local.get(['promptHistory'], (res) => {
-               if (res.promptHistory) setHistory(res.promptHistory as HistoryItem[]);
+            // Reload history from backend to show the newest item
+            chrome.storage.local.get(['sessionId'], async (res) => {
+              if (res.sessionId) {
+                const prompts = await fetchHistory(res.sessionId as string);
+                setHistory(prompts as HistoryItem[]);
+              }
             });
           } else {
             setErrorMsg(response?.error || 'Failed to generate prompt.');
@@ -93,7 +88,6 @@ export default function App() {
 
   const clearHistory = () => {
     if (confirm("Are you sure you want to clear your prompt history?")) {
-      chrome.storage.local.set({ promptHistory: [] });
       setHistory([]);
     }
   };
@@ -115,18 +109,6 @@ export default function App() {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-5 flex flex-col gap-6">
         
-        {/* Settings / API Key */}
-        <section className="space-y-2">
-           <label className="text-sm font-medium text-slate-400 block">Gemini API Key</label>
-           <input 
-             type="password"
-             value={apiKey}
-             onChange={handleApiKeyChange}
-             placeholder="AIzaSy..."
-             className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500 transition-colors placeholder:text-slate-600"
-           />
-        </section>
-
         {errorMsg && (
           <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg">
             {errorMsg}
