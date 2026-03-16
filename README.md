@@ -1,41 +1,74 @@
-# Gemini Screen Scribe Chrome Extension
+# Gemini Screen Scribe
 
-A Chrome extension that records your screen, captures your voice, and uses Gemini to turn visual/audio feedback into high-quality AI prompts for coding.
+A Chrome extension that records your screen and voice, lets you draw annotations on any tab, and sends the multimodal recording to a **Google Cloud Run** backend to generate AI-powered coding prompts via Gemini.
+
+Built for the [Gemini Live Agent Challenge](https://geminiliveagentchallenge.devpost.com).
 
 ## Features
-- **Dual Mode UI**: 'Edit & Fix' vs. 'Inspire' workflows built into a premium Tailwind CSS popup.
-- **Multimodal Gemini Integration**: Automatically processes the video payload through the `@google/genai` multimodal SDK to generate structural developer code or AI instructions.
-- **Custom Shadow DOM Overlay**: A lightweight floating canvas (`perfect-freehand`) injected perfectly into the active tab without causing CSS conflicts on the host page.
-- **Offscreen Engine**: Required by Manifest V3 to bypass the service-worker media capture limitations. Handles screen rendering and microphone processing.
 
-## How to Test Locally on Chrome
+- **Edit & Fix mode** — Record a bug or UI issue, narrate what you want changed, annotate with freehand drawing. Gemini returns a structured code fix with explanation.
+- **Inspire mode** — Record a website you love. Gemini reverse-engineers the design and produces a detailed prompt you can paste into any AI coding tool to recreate it.
+- **Server-side API key** — No API key required from the user. All Gemini calls go through a Cloud Run backend.
+- **Prompt history** — Every generated prompt is saved to Firestore and shown in the extension popup, persisted across sessions.
+- **Shadow DOM overlay** — Freehand drawing canvas injected into any tab without CSS conflicts, powered by `perfect-freehand`.
 
-Because this extension uses `chrome.desktopCapture`, it must be tested natively in your browser.
+## Architecture
 
-1. **Build the extension**:
-   Ensure you have installed dependencies and built the project.
-   ```bash
-   npm install
-   npm run build
-   ```
-   This will compile the extension and create a `dist` folder.
+```
+Chrome Extension (dist/)
+  └─ POST /process-video  ──▶  Cloud Run (Node.js + Hono)
+                                   ├─ calls Gemini API (server-side key)
+                                   └─ saves prompt to Firestore
+                                        └─ sessions/{sessionId}/prompts
 
-2. **Load the Unpacked Extension in Chrome**:
-   - Open Chrome and navigate to `chrome://extensions/`.
-   - Enable **Developer mode** using the toggle in the top right corner.
-   - Click the **Load unpacked** button in the top left.
-   - Select the **`dist`** folder located inside this project directory (`/home/brav/Documents/code/uiextension/dist`).
+Chrome Extension (popup)
+  └─ GET /history/{sessionId}  ──▶  Cloud Run  ──▶  Firestore
+```
 
-3. **Configure & Use**:
-   - Click the new extension icon (Screen Scribe) near your URL bar.
-   - Paste your Gemini API key into the settings field (A Gemini 3 Flash key is recommended).
-   - Choose an analysis mode ("Edit & Fix" or "Inspire"), click **Start Screen Scribe**, and start annotating!
-   - When finished, click **Stop & Generate Prompt** in the popup to send the recording to Gemini.
+**Google Cloud services used:**
+- **Cloud Run** — hosts the backend, holds the Gemini API key securely
+- **Firestore** — stores prompt history per anonymous session
 
-## Development
+## Local Development
 
-This project was built with:
-- React + TypeScript
-- Vite + CRXJS (for active content-script Hot Module Replacement)
-- TailwindCSS v3
-- `@google/genai` Multimodal SDK
+### Extension
+
+```bash
+npm install
+npm run build       # outputs to dist/
+```
+
+Load in Chrome:
+1. Go to `chrome://extensions/`
+2. Enable **Developer mode**
+3. Click **Load unpacked** → select the `dist/` folder
+
+### Backend
+
+```bash
+cd backend
+npm install
+GEMINI_API_KEY=your_key npm run dev    # runs on http://localhost:8080
+```
+
+Set the local backend URL before building the extension:
+```bash
+# .env
+VITE_BACKEND_URL=http://localhost:8080
+```
+
+## Deployment
+
+See [deploy.md](./deploy.md) for the full step-by-step guide covering Cloud Run, Firestore setup, and Chrome Web Store submission.
+
+## Tech stack
+
+| Layer | Tech |
+|---|---|
+| Extension UI | React 19 + TypeScript + Tailwind CSS |
+| Extension build | Vite + CRXJS |
+| Drawing overlay | `perfect-freehand` in a Shadow DOM |
+| Backend | Node.js 20 + Hono + TypeScript |
+| AI | Gemini (`gemini-flash-latest`) via `@google/genai` |
+| Hosting | Google Cloud Run |
+| History storage | Google Firestore |
