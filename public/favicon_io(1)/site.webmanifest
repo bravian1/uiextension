@@ -1,0 +1,12 @@
+{
+  "name": "Gemini Screen Scribe",
+  "short_name": "Screen Scribe",
+  "description": "Record your screen, voice, and annotations to generate AI coding prompts via Gemini.",
+  "icons": [
+    { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "display": "standalone"
+}
